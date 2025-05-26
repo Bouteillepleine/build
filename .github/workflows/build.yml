@@ -387,28 +387,24 @@ jobs:
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./common/scripts/mkcompile_h
           perl -pi -e 's{UTS_VERSION="\$\s*.*$}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./msm-kernel/scripts/mkcompile_h
 
-      - name: Build the Kernel
+       - name: Build the Kernel
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           
           echo "Building the kernel..."
+          # Clear Cache
           sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches'
           
-          rm ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports found!"
-          rm ./kernel_platform/msm-kernel/android/abi_gki_* || echo "No additional kernel exports found!"
+          rm ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          rm ./kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
           
           BUILD_TYPE="gki"
           BAZEL_ARGS=(--jobs=$(nproc --all) --lto=thin)
           if [ "${{ inputs.soc }}" == "sun" ]; then
-            BUILD_TYPE="testing"
+            BUILD_TYPE="perf"
             BAZEL_ARGS+=(-g)
           fi
-          
-          # Debug configuration
-          echo "Running make olddefconfig..."
-          cd "$CONFIG/kernel_platform/common"
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=../../out olddefconfig
           
           (stdbuf -oL bash -c '
             while true; do
@@ -419,79 +415,31 @@ jobs:
               echo "======"
               top -b -n 1 | head -n 15
               echo ""
-              sleep 2
+              sleep 60
             done
           ') &
           MONITOR_PID=$!
           trap "kill $MONITOR_PID" EXIT
           
-          cd "$CONFIG"
           if [ -f ./kernel_platform/build_with_bazel.py ]; then
-            ./kernel_platform/oplus/bazel/oplus_modules_variant.sh ${{ inputs.soc }} "$BUILD_TYPE" "" 2>&1 | tee build.log
-            ./kernel_platform/build_with_bazel.py -t ${{ inputs.soc }} $BUILD_TYPE "${BAZEL_ARGS[@]}" -o "$(pwd)/out" 2>&1 | tee -a build.log
+            ./kernel_platform/oplus/bazel/oplus_modules_variant.sh ${{ inputs.soc }} "$BUILD_TYPE" ""
+            ./kernel_platform/build_with_bazel.py -t ${{ inputs.soc }} $BUILD_TYPE "${BAZEL_ARGS[@]}" -o "$(pwd)/out"
           else
-            LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} "$BUILD_TYPE" 2>&1 | tee build.log
+            LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} "$BUILD_TYPE"
           fi
-          
-          # Debug output directory
-          echo "Checking output directory structure..."
-          find "$CONFIG" -type d -name dist
-          
-          # List all modules
-          find "$CONFIG" -type f -name "*.ko" > module_list.txt
-
-      - name: Check for Blacklisted Modules
-        run: |
-          echo "Checking for blacklisted modules..."
-          if [ -d "$CONFIG/out" ]; then
-            cd "$CONFIG/out"
-            find . -type f -name "*.ko" -exec ls -l {} \; | grep -i -E "ext4_inode_test|f_fs_ipc_log|hung_task_enh|iio_test_format|kunit|kunit_example_test|kunit_test|oplus_bsp_sigkill_diagnosis|oplus_lock_torture|regmap_kunit|soc_topology_test|soc_utils_test" && exit 1 || echo "No blacklisted modules found in $CONFIG/out."
-          else
-            echo "Directory $CONFIG/out does not exist. Searching for .ko files in $CONFIG..."
-            find "$CONFIG" -type f -name "*.ko" -exec ls -l {} \; | grep -i -E "ext4_inode_test|f_fs_ipc_log|hung_task_enh|iio_test_format|kunit|kunit_example_test|kunit_test|oplus_bsp_sigkill_diagnosis|oplus_lock_torture|regmap_kunit|soc_topology_test|soc_utils_test" && exit 1 || echo "No blacklisted modules found in $CONFIG."
-          fi
-          
-          # Verify final .config
-          if [ -f "$CONFIG/out/.config" ]; then
-            echo "Checking final .config for blacklisted modules..."
-            grep -E "CONFIG_EXT4_INODE_TEST|CONFIG_F_FS_IPC_LOG|CONFIG_HUNG_TASK_ENH|CONFIG_IIO_TEST_FORMAT|CONFIG_KUNIT|CONFIG_KUNIT_EXAMPLE_TEST|CONFIG_KUNIT_TEST|CONFIG_KUNIT_DEBUGFS|CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS|CONFIG_OPLUS_LOCK_TORTURE|CONFIG_REGMAP_KUNIT|CONFIG_SOC_TOPOLOGY_TEST|CONFIG_SOC_UTILS_TEST" "$CONFIG/out/.config" && exit 1 || echo "No blacklisted modules enabled in final .config."
-          else
-            echo "No .config found in $CONFIG/out, cannot verify final configuration."
-          fi
-
-      - name: Upload Build Log
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log-${{ env.CONFIG }}
-          path: build.log
-
-      - name: Upload Module List
-        uses: actions/upload-artifact@v4
-        with:
-          name: module-list-${{ env.CONFIG }}
-          path: module_list.txt
 
       - name: Copy Images
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           
-          echo "Copying Image..."
-          if [ -f ./out/dist/Image ]; then
-            cp ./out/dist/Image ../AnyKernel3/Image
-          else
-            echo "Image not found in $CONFIG/out/dist, searching..."
-            find "$CONFIG" -type f -name Image -exec cp {} ../AnyKernel3/Image \;
-          fi
+          echo "Copying Image"
+          cp ./out/dist/Image ../AnyKernel3/Image
           if [ "${{ inputs.model }}" == "OPAce5Pro" ]; then
-            if [ -f ./out/dist/dtbo.img ]; then
-              cp ./out/dist/dtbo.img ../AnyKernel3/
-              cp ./out/dist/system_dlkm.erofs.img ../AnyKernel3/system_dlkm.img
-            else
-              echo "dtbo.img or system_dlkm.erofs.img not found, searching..."
-              find "$CONFIG" -type f -name dtbo.img -exec cp {} ../AnyKernel3/ \;
-              find "$CONFIG" -type f -name system_dlkm.erofs.img -exec cp {} ../AnyKernel3/system_dlkm.img \;
-            fi
+            cp ./out/dist/dtbo.img ../AnyKernel3/
+            cp ./out/dist/system_dlkm.erofs.img ../AnyKernel3/system_dlkm.img
+            # cp ./out/dist/vendor_dlkm.img ../AnyKernel3/
+            # cp ./out/dist/vendor_boot.img ../AnyKernel3/
           fi
 
       - name: Create ZIP Files for Different Formats
@@ -499,9 +447,11 @@ jobs:
           echo "Navigating to AnyKernel3 directory..."
           cd ./AnyKernel3
           
+          # Zip the files in the AnyKernel3 directory with a new naming convention
           ZIP_NAME="${{ inputs.model }}_${{ inputs.android_version }}_${{ inputs.kernel_version }}_Next_SUSFS_AnyKernel3.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
+          # Fengchi Patch for OPAce5Pro
           if [ "${{ inputs.model }}" == "OPAce5Pro" ]; then
             sed -i 's/hmbird/xxbird/g' dtbo.img
             zip -r "../$ZIP_NAME-CN-version.zip" ./*
