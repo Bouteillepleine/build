@@ -337,7 +337,23 @@ jobs:
           else
             echo "oplus_modules_variant.sh not found, skipping modification."
           fi
-
+          
+      - name: Remove Kunit from Build Scripts
+        run: |
+          echo "Removing kunit references from build scripts..."
+          cd "$CONFIG"
+          if [ -d "kernel_platform" ]; then
+            cd kernel_platform
+          fi
+          find ./oplus -type f -name "*.sh" -exec sed -i '/kunit/d' {} \; || true
+          find ./common -type f -name "Makefile" -exec sed -i '/kunit/d' {} \; || true
+          if [ -f ./common/android/abi_gki_aarch64.xml ]; then
+            sed -i '/kunit_/d' ./common/android/abi_gki_aarch64.xml || true
+          fi
+          if [ -f ./build/kernel/kleaf/common.bzl ]; then
+            sed -i '/kmi_symbol_list_strict_mode/d' ./build/kernel/kleaf/common.bzl || true
+          fi
+          
       - name: Disable Debug stuffs
         run: |
           echo "Changing to configuration directory: $CONFIG..."
