@@ -67,7 +67,7 @@ jobs:
       - name: Install Repo and Python
         run: |
           sudo apt update
-          sudo apt install -y python3 python-is-python3
+          sudo apt install -y python3 python-is-python3 make
           
           mkdir -p ./git-repo
           curl -sSL https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
@@ -258,10 +258,25 @@ jobs:
           echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Disable modules
+      - name: Disable blacklisted modules
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
+          
+          echo "Cleaning gki_defconfig of blacklisted modules..."
+          sed -i '/CONFIG_EXT4_INODE_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_F_FS_IPC_LOG=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_HUNG_TASK_ENH=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_IIO_TEST_FORMAT=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_KUNIT=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_KUNIT_EXAMPLE_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_KUNIT_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_KUNIT_DEBUGFS=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_OPLUS_LOCK_TORTURE=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_REGMAP_KUNIT=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_SOC_TOPOLOGY_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_SOC_UTILS_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
           
           echo "Disabling blacklisted modules in gki_defconfig..."
           echo "CONFIG_EXT4_INODE_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
@@ -271,6 +286,7 @@ jobs:
           echo "CONFIG_KUNIT=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KUNIT_EXAMPLE_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KUNIT_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KUNIT_DEBUGFS=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_OPLUS_LOCK_TORTURE=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_REGMAP_KUNIT=n" >> ./common/arch/arm64/configs/gki_defconfig
@@ -281,26 +297,27 @@ jobs:
         run: |
           echo "Checking gki_defconfig for blacklisted modules..."
           cd "$CONFIG/kernel_platform/common"
-          cat arch/arm64/configs/gki_defconfig | grep -E "CONFIG_EXT4_INODE_TEST|CONFIG_F_FS_IPC_LOG|CONFIG_HUNG_TASK_ENH|CONFIG_IIO_TEST_FORMAT|CONFIG_KUNIT|CONFIG_KUNIT_EXAMPLE_TEST|CONFIG_KUNIT_TEST|CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS|CONFIG_OPLUS_LOCK_TORTURE|CONFIG_REGMAP_KUNIT|CONFIG_SOC_TOPOLOGY_TEST|CONFIG_SOC_UTILS_TEST" || echo "No blacklisted module configurations found in gki_defconfig."
+          grep -E "CONFIG_EXT4_INODE_TEST|CONFIG_F_FS_IPC_LOG|CONFIG_HUNG_TASK_ENH|CONFIG_IIO_TEST_FORMAT|CONFIG_KUNIT|CONFIG_KUNIT_EXAMPLE_TEST|CONFIG_KUNIT_TEST|CONFIG_KUNIT_DEBUGFS|CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS|CONFIG_OPLUS_LOCK_TORTURE|CONFIG_REGMAP_KUNIT|CONFIG_SOC_TOPOLOGY_TEST|CONFIG_SOC_UTILS_TEST" arch/arm64/configs/gki_defconfig || echo "No blacklisted module configurations found in gki_defconfig."
 
-      - name: Patch Kconfig
+      - name: Patch Kconfig to Disable Blacklisted Modules
         run: |
           echo "Patching Kconfig files to disable blacklisted modules..."
           cd "$CONFIG/kernel_platform"
-          find . -name Kconfig -exec sed -i 's/CONFIG_EXT4_INODE_TEST=y/CONFIG_EXT4_INODE_TEST=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_F_FS_IPC_LOG=y/CONFIG_F_FS_IPC_LOG=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_HUNG_TASK_ENH=y/CONFIG_HUNG_TASK_ENH=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=y/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT=y/CONFIG_KUNIT=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_EXAMPLE_TEST=y/CONFIG_KUNIT_EXAMPLE_TEST=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_TEST=y/CONFIG_KUNIT_TEST=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=y/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_LOCK_TORTURE=y/CONFIG_OPLUS_LOCK_TORTURE=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_REGMAP_KUNIT=y/CONFIG_REGMAP_KUNIT=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_SOC_TOPOLOGY_TEST=y/CONFIG_SOC_TOPOLOGY_TEST=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_SOC_UTILS_TEST=y/CONFIG_SOC_UTILS_TEST=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_EXT4_INODE_TEST=[ym]/CONFIG_EXT4_INODE_TEST=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_F_FS_IPC_LOG=[ym]/CONFIG_F_FS_IPC_LOG=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_HUNG_TASK_ENH=[ym]/CONFIG_HUNG_TASK_ENH=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=[ym]/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT=[ym]/CONFIG_KUNIT=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_EXAMPLE_TEST=[ym]/CONFIG_KUNIT_EXAMPLE_TEST=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_TEST=[ym]/CONFIG_KUNIT_TEST=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_DEBUGFS=[ym]/CONFIG_KUNIT_DEBUGFS=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=[ym]/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_LOCK_TORTURE=[ym]/CONFIG_OPLUS_LOCK_TORTURE=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_REGMAP_KUNIT=[ym]/CONFIG_REGMAP_KUNIT=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_SOC_TOPOLOGY_TEST=[ym]/CONFIG_SOC_TOPOLOGY_TEST=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_SOC_UTILS_TEST=[ym]/CONFIG_SOC_UTILS_TEST=n/' {} \; || true
 
-      - name: Modify modules_variant.sh
+      - name: Modify oplus_modules_variant.sh
         run: |
           echo "Modifying oplus_modules_variant.sh to exclude blacklisted modules..."
           cd "$CONFIG/kernel_platform"
@@ -309,14 +326,14 @@ jobs:
             sed -i '/f_fs_ipc_log/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No f_fs_ipc_log in oplus_modules_variant.sh"
             sed -i '/hung_task_enh/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No hung_task_enh in oplus_modules_variant.sh"
             sed -i '/iio_test_format/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No iio_test_format in oplus_modules_variant.sh"
-            sed -i '/kunit/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit in oplus_modules_variant.sh"
+            sed -i '/kunit[^_]/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit in oplus_modules_variant.sh"
             sed -i '/kunit_example_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit_example_test in oplus_modules_variant.sh"
-            sed -i '/kunit_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit_test in oplus_bazel/oplus_modules_variant.sh"
+            sed -i '/kunit_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit_test in oplus_modules_variant.sh"
             sed -i '/oplus_bsp_sigkill_diagnosis/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No oplus_bsp_sigkill_diagnosis in oplus_modules_variant.sh"
             sed -i '/oplus_lock_torture/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No oplus_lock_torture in oplus_modules_variant.sh"
             sed -i '/regmap_kunit/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No regmap_kunit in oplus_modules_variant.sh"
-            sed -i '/soc_topology/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_topology_test in oplus_modules_variant.sh"
-            sed -i '/soc_utils/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_utils_test in oplus_modules_variant.sh"
+            sed -i '/soc_topology_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_topology_test in oplus_modules_variant.sh"
+            sed -i '/soc_utils_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_utils_test in oplus_modules_variant.sh"
           else
             echo "oplus_modules_variant.sh not found, skipping modification."
           fi
@@ -349,9 +366,9 @@ jobs:
           
           echo "Running sed commands..."
           
-          sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
-          sed -i 's/CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
-          sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
+          sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' ./common/arch/arm64/configs/gki_defconfig
+          sed -i 's/CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' ./common/arch/arm64/configs/gki_defconfig
+          sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_THIN=y/' ./common/arch/arm64/configs/gki_defconfig
           
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i '$s|echo "\$res"|echo "\$res"|' ./common/scripts/setlocalversion
@@ -368,7 +385,7 @@ jobs:
           
           DATESTR=$(date -u)
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./common/scripts/mkcompile_h
-          perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./msm-kernel/scripts/mkcompile_h
+          perl -pi -e 's{UTS_VERSION="\$\s*.*$}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./msm-kernel/scripts/mkcompile_h
 
       - name: Build the Kernel
         run: |
@@ -378,15 +395,20 @@ jobs:
           echo "Building the kernel..."
           sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches'
           
-          rm ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          rm ./kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          rm ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports found!"
+          rm ./kernel_platform/msm-kernel/android/abi_gki_* || echo "No additional kernel exports found!"
           
           BUILD_TYPE="gki"
           BAZEL_ARGS=(--jobs=$(nproc --all) --lto=thin)
           if [ "${{ inputs.soc }}" == "sun" ]; then
-            BUILD_TYPE="perf"
+            BUILD_TYPE="testing"
             BAZEL_ARGS+=(-g)
           fi
+          
+          # Debug configuration
+          echo "Running make olddefconfig..."
+          cd "$CONFIG/kernel_platform/common"
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=../../out olddefconfig
           
           (stdbuf -oL bash -c '
             while true; do
@@ -397,12 +419,13 @@ jobs:
               echo "======"
               top -b -n 1 | head -n 15
               echo ""
-              sleep 60
+              sleep 2
             done
           ') &
           MONITOR_PID=$!
           trap "kill $MONITOR_PID" EXIT
           
+          cd "$CONFIG"
           if [ -f ./kernel_platform/build_with_bazel.py ]; then
             ./kernel_platform/oplus/bazel/oplus_modules_variant.sh ${{ inputs.soc }} "$BUILD_TYPE" "" 2>&1 | tee build.log
             ./kernel_platform/build_with_bazel.py -t ${{ inputs.soc }} $BUILD_TYPE "${BAZEL_ARGS[@]}" -o "$(pwd)/out" 2>&1 | tee -a build.log
@@ -410,22 +433,65 @@ jobs:
             LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} "$BUILD_TYPE" 2>&1 | tee build.log
           fi
           
+          # Debug output directory
+          echo "Checking output directory structure..."
+          find "$CONFIG" -type d -name dist
+          
+          # List all modules
+          find "$CONFIG" -type f -name "*.ko" > module_list.txt
+
+      - name: Check for Blacklisted Modules
+        run: |
+          echo "Checking for blacklisted modules..."
+          if [ -d "$CONFIG/out" ]; then
+            cd "$CONFIG/out"
+            find . -type f -name "*.ko" -exec ls -l {} \; | grep -i -E "ext4_inode_test|f_fs_ipc_log|hung_task_enh|iio_test_format|kunit|kunit_example_test|kunit_test|oplus_bsp_sigkill_diagnosis|oplus_lock_torture|regmap_kunit|soc_topology_test|soc_utils_test" && exit 1 || echo "No blacklisted modules found in $CONFIG/out."
+          else
+            echo "Directory $CONFIG/out does not exist. Searching for .ko files in $CONFIG..."
+            find "$CONFIG" -type f -name "*.ko" -exec ls -l {} \; | grep -i -E "ext4_inode_test|f_fs_ipc_log|hung_task_enh|iio_test_format|kunit|kunit_example_test|kunit_test|oplus_bsp_sigkill_diagnosis|oplus_lock_torture|regmap_kunit|soc_topology_test|soc_utils_test" && exit 1 || echo "No blacklisted modules found in $CONFIG."
+          fi
+          
+          # Verify final .config
+          if [ -f "$CONFIG/out/.config" ]; then
+            echo "Checking final .config for blacklisted modules..."
+            grep -E "CONFIG_EXT4_INODE_TEST|CONFIG_F_FS_IPC_LOG|CONFIG_HUNG_TASK_ENH|CONFIG_IIO_TEST_FORMAT|CONFIG_KUNIT|CONFIG_KUNIT_EXAMPLE_TEST|CONFIG_KUNIT_TEST|CONFIG_KUNIT_DEBUGFS|CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS|CONFIG_OPLUS_LOCK_TORTURE|CONFIG_REGMAP_KUNIT|CONFIG_SOC_TOPOLOGY_TEST|CONFIG_SOC_UTILS_TEST" "$CONFIG/out/.config" && exit 1 || echo "No blacklisted modules enabled in final .config."
+          else
+            echo "No .config found in $CONFIG/out, cannot verify final configuration."
+          fi
+
       - name: Upload Build Log
         uses: actions/upload-artifact@v4
         with:
           name: build-log-${{ env.CONFIG }}
           path: build.log
 
+      - name: Upload Module List
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-list-${{ env.CONFIG }}
+          path: module_list.txt
+
       - name: Copy Images
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           
-          echo "Copying Image"
-          cp ./out/dist/Image ../AnyKernel3/Image
+          echo "Copying Image..."
+          if [ -f ./out/dist/Image ]; then
+            cp ./out/dist/Image ../AnyKernel3/Image
+          else
+            echo "Image not found in $CONFIG/out/dist, searching..."
+            find "$CONFIG" -type f -name Image -exec cp {} ../AnyKernel3/Image \;
+          fi
           if [ "${{ inputs.model }}" == "OPAce5Pro" ]; then
-            cp ./out/dist/dtbo.img ../AnyKernel3/
-            cp ./out/dist/system_dlkm.erofs.img ../AnyKernel3/system_dlkm.img
+            if [ -f ./out/dist/dtbo.img ]; then
+              cp ./out/dist/dtbo.img ../AnyKernel3/
+              cp ./out/dist/system_dlkm.erofs.img ../AnyKernel3/system_dlkm.img
+            else
+              echo "dtbo.img or system_dlkm.erofs.img not found, searching..."
+              find "$CONFIG" -type f -name dtbo.img -exec cp {} ../AnyKernel3/ \;
+              find "$CONFIG" -type f -name system_dlkm.erofs.img -exec cp {} ../AnyKernel3/system_dlkm.img \;
+            fi
           fi
 
       - name: Create ZIP Files for Different Formats
