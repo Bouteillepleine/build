@@ -283,7 +283,7 @@ jobs:
           cd "$CONFIG/kernel_platform/common"
           cat arch/arm64/configs/gki_defconfig | grep -E "CONFIG_EXT4_INODE_TEST|CONFIG_F_FS_IPC_LOG|CONFIG_HUNG_TASK_ENH|CONFIG_IIO_TEST_FORMAT|CONFIG_KUNIT|CONFIG_KUNIT_EXAMPLE_TEST|CONFIG_KUNIT_TEST|CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS|CONFIG_OPLUS_LOCK_TORTURE|CONFIG_REGMAP_KUNIT|CONFIG_SOC_TOPOLOGY_TEST|CONFIG_SOC_UTILS_TEST" || echo "No blacklisted module configurations found in gki_defconfig."
 
-      - name: Patch Kconfig to Disable Blacklisted Modules
+      - name: Patch Kconfig
         run: |
           echo "Patching Kconfig files to disable blacklisted modules..."
           cd "$CONFIG/kernel_platform"
@@ -300,7 +300,7 @@ jobs:
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_TOPOLOGY_TEST=y/CONFIG_SOC_TOPOLOGY_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_UTILS_TEST=y/CONFIG_SOC_UTILS_TEST=n/' {} \; || true
 
-      - name: Modify oplus_modules_variant.sh
+      - name: Modify modules_variant.sh
         run: |
           echo "Modifying oplus_modules_variant.sh to exclude blacklisted modules..."
           cd "$CONFIG/kernel_platform"
