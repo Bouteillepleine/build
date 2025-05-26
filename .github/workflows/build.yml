@@ -267,8 +267,7 @@ jobs:
           sed -i '/CONFIG_EXT4_INODE_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_F_FS_IPC_LOG=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_HUNG_TASK_ENH=/d' ./common/arch/arm64/configs/gki_defconfig
-          sed -i '/CONFIG_IIO_TEST_FORMAT=/d' ./common/arch/arm64/configs/gki_defconfig
-          sed -i '/CONFIG_KUNIT=/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_IIO_TEST_FORMAT=/d' ./common/arch/arm64/configs/gki_defconfig          
           sed -i '/CONFIG_KUNIT_EXAMPLE_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_KUNIT_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_KUNIT_DEBUGFS=/d' ./common/arch/arm64/configs/gki_defconfig
@@ -282,8 +281,7 @@ jobs:
           echo "CONFIG_EXT4_INODE_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_F_FS_IPC_LOG=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_HUNG_TASK_ENH=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IIO_TEST_FORMAT=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KUNIT=n" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_IIO_TEST_FORMAT=n" >> ./common/arch/arm64/configs/gki_defconfig          
           echo "CONFIG_KUNIT_EXAMPLE_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KUNIT_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KUNIT_DEBUGFS=n" >> ./common/arch/arm64/configs/gki_defconfig
@@ -306,8 +304,7 @@ jobs:
           find . -name Kconfig -exec sed -i 's/CONFIG_EXT4_INODE_TEST=[ym]/CONFIG_EXT4_INODE_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_F_FS_IPC_LOG=[ym]/CONFIG_F_FS_IPC_LOG=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_HUNG_TASK_ENH=[ym]/CONFIG_HUNG_TASK_ENH=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=[ym]/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT=[ym]/CONFIG_KUNIT=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=[ym]/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true          
           find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_EXAMPLE_TEST=[ym]/CONFIG_KUNIT_EXAMPLE_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_TEST=[ym]/CONFIG_KUNIT_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_DEBUGFS=[ym]/CONFIG_KUNIT_DEBUGFS=n/' {} \; || true
@@ -325,8 +322,7 @@ jobs:
             sed -i '/ext4_inode_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No ext4_inode_test in oplus_modules_variant.sh"
             sed -i '/f_fs_ipc_log/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No f_fs_ipc_log in oplus_modules_variant.sh"
             sed -i '/hung_task_enh/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No hung_task_enh in oplus_modules_variant.sh"
-            sed -i '/iio_test_format/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No iio_test_format in oplus_modules_variant.sh"
-            sed -i '/kunit[^_]/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit in oplus_modules_variant.sh"
+            sed -i '/iio_test_format/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No iio_test_format in oplus_modules_variant.sh"            
             sed -i '/kunit_example_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit_example_test in oplus_modules_variant.sh"
             sed -i '/kunit_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit_test in oplus_modules_variant.sh"
             sed -i '/oplus_bsp_sigkill_diagnosis/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No oplus_bsp_sigkill_diagnosis in oplus_modules_variant.sh"
@@ -336,24 +332,8 @@ jobs:
             sed -i '/soc_utils_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_utils_test in oplus_modules_variant.sh"
           else
             echo "oplus_modules_variant.sh not found, skipping modification."
-          fi
-          
-      - name: Remove Kunit from Build Scripts
-        run: |
-          echo "Removing kunit references from build scripts..."
-          cd "$CONFIG"
-          if [ -d "kernel_platform" ]; then
-            cd kernel_platform
-          fi
-          find ./oplus -type f -name "*.sh" -exec sed -i '/kunit/d' {} \; || true
-          find ./common -type f -name "Makefile" -exec sed -i '/kunit/d' {} \; || true
-          if [ -f ./common/android/abi_gki_aarch64.xml ]; then
-            sed -i '/kunit_/d' ./common/android/abi_gki_aarch64.xml || true
-          fi
-          if [ -f ./build/kernel/kleaf/common.bzl ]; then
-            sed -i '/kmi_symbol_list_strict_mode/d' ./build/kernel/kleaf/common.bzl || true
-          fi
-          
+          fi        
+                
       - name: Disable Debug stuffs
         run: |
           echo "Changing to configuration directory: $CONFIG..."
