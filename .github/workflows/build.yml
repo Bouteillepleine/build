@@ -268,12 +268,8 @@ jobs:
           sed -i '/CONFIG_F_FS_IPC_LOG=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_HUNG_TASK_ENH=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_IIO_TEST_FORMAT=/d' ./common/arch/arm64/configs/gki_defconfig          
-          sed -i '/CONFIG_KUNIT_EXAMPLE_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
-          sed -i '/CONFIG_KUNIT_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
-          sed -i '/CONFIG_KUNIT_DEBUGFS=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_OPLUS_LOCK_TORTURE=/d' ./common/arch/arm64/configs/gki_defconfig
-          sed -i '/CONFIG_REGMAP_KUNIT=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_SOC_TOPOLOGY_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_SOC_UTILS_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
           
@@ -282,12 +278,8 @@ jobs:
           echo "CONFIG_F_FS_IPC_LOG=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_HUNG_TASK_ENH=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IIO_TEST_FORMAT=n" >> ./common/arch/arm64/configs/gki_defconfig          
-          echo "CONFIG_KUNIT_EXAMPLE_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KUNIT_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KUNIT_DEBUGFS=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_OPLUS_LOCK_TORTURE=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_REGMAP_KUNIT=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_SOC_TOPOLOGY_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_SOC_UTILS_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
 
@@ -304,13 +296,9 @@ jobs:
           find . -name Kconfig -exec sed -i 's/CONFIG_EXT4_INODE_TEST=[ym]/CONFIG_EXT4_INODE_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_F_FS_IPC_LOG=[ym]/CONFIG_F_FS_IPC_LOG=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_HUNG_TASK_ENH=[ym]/CONFIG_HUNG_TASK_ENH=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=[ym]/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true          
-          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_EXAMPLE_TEST=[ym]/CONFIG_KUNIT_EXAMPLE_TEST=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_TEST=[ym]/CONFIG_KUNIT_TEST=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_KUNIT_DEBUGFS=[ym]/CONFIG_KUNIT_DEBUGFS=n/' {} \; || true
+          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=[ym]/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true        
           find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=[ym]/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_LOCK_TORTURE=[ym]/CONFIG_OPLUS_LOCK_TORTURE=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_REGMAP_KUNIT=[ym]/CONFIG_REGMAP_KUNIT=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_TOPOLOGY_TEST=[ym]/CONFIG_SOC_TOPOLOGY_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_UTILS_TEST=[ym]/CONFIG_SOC_UTILS_TEST=n/' {} \; || true
 
@@ -323,11 +311,8 @@ jobs:
             sed -i '/f_fs_ipc_log/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No f_fs_ipc_log in oplus_modules_variant.sh"
             sed -i '/hung_task_enh/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No hung_task_enh in oplus_modules_variant.sh"
             sed -i '/iio_test_format/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No iio_test_format in oplus_modules_variant.sh"            
-            sed -i '/kunit_example_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit_example_test in oplus_modules_variant.sh"
-            sed -i '/kunit_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No kunit_test in oplus_modules_variant.sh"
             sed -i '/oplus_bsp_sigkill_diagnosis/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No oplus_bsp_sigkill_diagnosis in oplus_modules_variant.sh"
             sed -i '/oplus_lock_torture/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No oplus_lock_torture in oplus_modules_variant.sh"
-            sed -i '/regmap_kunit/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No regmap_kunit in oplus_modules_variant.sh"
             sed -i '/soc_topology_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_topology_test in oplus_modules_variant.sh"
             sed -i '/soc_utils_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_utils_test in oplus_modules_variant.sh"
           else
@@ -385,19 +370,23 @@ jobs:
 
       - name: Build the Kernel
         run: |
-          set -e
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
+          
           echo "Building the kernel..."
+          # Clear Cache
           sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches'
+          
           rm ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
           rm ./kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          
           BUILD_TYPE="gki"
-          BAZEL_ARGS=(--jobs=4 --lto=thin)
+          BAZEL_ARGS=(--jobs=$(nproc --all) --lto=thin)
           if [ "${{ inputs.soc }}" == "sun" ]; then
             BUILD_TYPE="perf"
             BAZEL_ARGS+=(-g)
           fi
+          
           (stdbuf -oL bash -c '
             while true; do
               echo "=== $(date) ==="
@@ -409,13 +398,13 @@ jobs:
               echo ""
               sleep 60
             done
-            ') &
+          ') &
           MONITOR_PID=$!
           trap "kill $MONITOR_PID" EXIT
+          
           if [ -f ./kernel_platform/build_with_bazel.py ]; then
             ./kernel_platform/oplus/bazel/oplus_modules_variant.sh ${{ inputs.soc }} "$BUILD_TYPE" ""
-            echo "Running bazel with args: ${BAZEL_ARGS[@]}"
-            ./kernel_platform/build_with_bazel.py -t ${{ inputs.soc }} $BUILD_TYPE "${BAZEL_ARGS[@]}" -o "$(pwd)/out" --verbose
+            ./kernel_platform/build_with_bazel.py -t ${{ inputs.soc }} $BUILD_TYPE "${BAZEL_ARGS[@]}" -o "$(pwd)/out"
           else
             LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} "$BUILD_TYPE"
           fi
