@@ -330,15 +330,11 @@ jobs:
 
       - name: Integrate Sched Ext
         run: |
-          set -e
-          set -x
           cd "$CONFIG/kernel_platform"
-          git clone https://github.com/cctv18/sched_ext.git
-          rm -rf ./sched_ext/.git
-          rm -rf ./sched_ext/README.md
-          mkdir -p ./common/kernel/sched
-          cp -r ./sched_ext/* ./common/kernel/sched
-          echo "Sched_ext integrated successfully" > sched_ext.log
+           git clone https://github.com/HanKuCha/sched_ext.git
+           cp -r ./sched_ext/* ./common/kernel/sched
+           rm -rf ./sched_ext/.git
+           cd common/kernel/sched      
 
       - name: Run sed and perl Commands
         run: |
