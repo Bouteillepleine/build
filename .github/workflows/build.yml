@@ -385,23 +385,19 @@ jobs:
 
       - name: Build the Kernel
         run: |
+          set -e
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-          
           echo "Building the kernel..."
-          # Clear Cache
           sudo sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches'
-          
           rm ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
           rm ./kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          
           BUILD_TYPE="gki"
-          BAZEL_ARGS=(--jobs=$(nproc --all) --lto=thin)
+          BAZEL_ARGS=(--jobs=4 --lto=thin)
           if [ "${{ inputs.soc }}" == "sun" ]; then
             BUILD_TYPE="perf"
             BAZEL_ARGS+=(-g)
           fi
-          
           (stdbuf -oL bash -c '
             while true; do
               echo "=== $(date) ==="
@@ -413,13 +409,13 @@ jobs:
               echo ""
               sleep 60
             done
-          ') &
+            ') &
           MONITOR_PID=$!
           trap "kill $MONITOR_PID" EXIT
-          
           if [ -f ./kernel_platform/build_with_bazel.py ]; then
             ./kernel_platform/oplus/bazel/oplus_modules_variant.sh ${{ inputs.soc }} "$BUILD_TYPE" ""
-            ./kernel_platform/build_with_bazel.py -t ${{ inputs.soc }} $BUILD_TYPE "${BAZEL_ARGS[@]}" -o "$(pwd)/out"
+            echo "Running bazel with args: ${BAZEL_ARGS[@]}"
+            ./kernel_platform/build_with_bazel.py -t ${{ inputs.soc }} $BUILD_TYPE "${BAZEL_ARGS[@]}" -o "$(pwd)/out" --verbose
           else
             LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} "$BUILD_TYPE"
           fi
