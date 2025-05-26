@@ -129,7 +129,7 @@ jobs:
           echo "Applying SUSFS patches..."
           
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
-          cp ../../susfs4ksu/kernel_patches/fs/* ./common/fs/
+          cp ../../susfs4kappa/kernel_patches/fs/* ./common/fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
           
           cd ./KernelSU-Next
@@ -276,6 +276,11 @@ jobs:
           echo "CONFIG_SOC_TOPOLOGY_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_SOC_UTILS_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
 
+      - name: Verify gki_defconfig
+        run: |
+          echo "Checking gki_defconfig for blacklisted modules..."
+          cat "$CONFIG/kernel_platform/common/arch/arm64/configs/gki_defconfig" | grep -E "CONFIG_EXT4_INODE_TEST|CONFIG_KUNIT|CONFIG_OPLUS" || echo "No blacklisted module configurations found in gki_defconfig."
+
       - name: Disable Debug stuffs
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -368,8 +373,13 @@ jobs:
       - name: Check for Blacklisted Modules
         run: |
           echo "Checking for blacklisted modules in output..."
-          cd "$CONFIG/out/dist"
-          ls -l *.ko | grep -E "ext4_inode_test|f_fs_ipc_log|hung_task_enh|iio_test_format|kunit|kunit_example_test|kunit_test|oplus_bsp_sigkill_diagnosis|oplus_lock_torture|regmap_kunit|soc_topology_test|soc_utils_test" || echo "No blacklisted modules found."
+          if [ -d "$CONFIG/out/dist" ]; then
+            cd "$CONFIG/out/dist"
+            ls -l *.ko | grep -E "ext4_inode_test|f_fs_ipc_log|hung_task_enh|iio_test_format|kunit|kunit_example_test|kunit_test|oplus_bsp_sigkill_diagnosis|oplus_lock_torture|regmap_kunit|soc_topology_test|soc_utils_test" || echo "No blacklisted modules found in $CONFIG/out/dist."
+          else
+            echo "Directory $CONFIG/out/dist does not exist. Searching for .ko files..."
+            find "$CONFIG" -type f -name "*.ko" -exec ls -l {} \; | grep -E "ext4_inode_test|f_fs_ipc_log|hung_task_enh|iio_test_format|kunit|kunit_example_test|kunit_test|oplus_bsp_sigkill_diagnosis|oplus_lock_torture|regmap_kunit|soc_topology_test|soc_utils_test" || echo "No blacklisted modules found in $CONFIG."
+          fi
 
       - name: Upload Build Log
         uses: actions/upload-artifact@v4
