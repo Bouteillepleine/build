@@ -92,19 +92,36 @@ jobs:
           
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          git clone https://github.com/TheWildJames/kernel_patches.git
+          git clone https://github.com/TheWildJames/kernel_patches.git          
 
       - name: Initialize and Sync Kernel Source
         run: |
           echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
           cd "$CONFIG"
-          
+    
           echo "Initializing and syncing kernel source..."
-          $REPO init -u https://github.com/OnePlusOSS/kernel_manifest.git -b ${{ inputs.branch }} -m ${{ inputs.manifest }} --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
-          
+          $REPO init -u https://github.com/OnePlusOSS/kernel_manifest.git -b ${{ inputs.branch }} -m ${{ inputs.manifest }} --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags || {
+            echo "Repo init failed"
+            exit 1
+          }
+          wget https://github.com/reigadegr/Action-Build/raw/gki_official/fengchi.patch
           $REPO --version
-          $REPO --trace sync -c --no-clone-bundle --no-tags --optimized-fetch -j$(nproc --all) --fail-fast
+          $REPO --trace sync -c --no-clone-bundle --no-tags --optimized-fetch -j$(nproc --all) --fail-fast || {
+            echo "Repo sync failed"
+            exit 1
+          }
+          # Apply fengchi patch if needed
+          if [ -f "fengchi.patch" ]; then
+            echo "Applying fengchi patch..."
+            cd kernel_platform/common
+            patch -p1 < ../../fengchi.patch || {
+              echo "Failed to apply fengchi patch"
+              exit 1
+            }
+            echo "Fengchi patch applied successfully"
+            cd ../..
+          fi
       
       - name: Add KernelSU Next
         run: |
@@ -330,11 +347,22 @@ jobs:
 
       - name: Integrate Sched Ext
         run: |
-          cd "$CONFIG/kernel_platform"
-           git clone https://github.com/HanKuCha/sched_ext.git
-           cp -r ./sched_ext/* ./common/kernel/sched
-           rm -rf ./sched_ext/.git
-           cd common/kernel/sched      
+          cd "$CONFIG/kernel_platform"           
+          git clone https://github.com/HanKuCha/sched_ext.git
+          cp -r ./sched_ext/* ./common/kernel/sched
+          rm -rf ./sched_ext/.git
+          cd common/kernel/sched    
+
+      - name: Convert HMBIRD_OGKI to HMBIRD_GKI
+        run: |
+          if [ "${{ github.event.inputs.kernel_version }}" = "6.6" ]; then
+            cd "$CONFIG/kernel_platform/common"
+            sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
+            wget https://github.com/Numbersf/Action-Build/raw/main/patchs/hmbird_patch.patch
+            echo "Applying OGKI to GKI Patch"
+            patch -p1 -F 3 < hmbird_patch.patch
+            echo "OGKI to GKI Patch Completed"
+          fi
 
       - name: Run sed and perl Commands
         run: |
