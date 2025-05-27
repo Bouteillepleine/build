@@ -323,24 +323,23 @@ jobs:
           echo "CONFIG_DEBUG_INFO=n" >> ./common/arch/arm64/configs/gki_defconfig
 
       - name: "🐂Integrate Sched Ext"
+        if: ${{ inputs.kernel_version == '6.6' }}
         run: |
-         if: ${{ github.event.inputs.kernel_version == '6.6' }}
-          cd "$CONFIG/kernel_platform"           
-          git clone https://github.com/HanKuCha/sched_ext.git
-          cp -r ./sched_ext/* ./common/kernel/sched
-          rm -rf ./sched_ext/.git
-          cd common/kernel/sched    
+            cd "$CONFIG/kernel_platform"           
+            git clone https://github.com/HanKuCha/sched_ext.git
+            cp -r ./sched_ext/* ./common/kernel/sched
+            rm -rf ./sched_ext/.git
+            cd common/kernel/sched    
 
       - name: "🐂Convert HMBIRD_OGKI to HMBIRD_GKI"
+        if: ${{ inputs.kernel_version == '6.6' }}
         run: |
-          if: ${{ github.event.inputs.kernel_version == '6.6' }}
             cd "$CONFIG/kernel_platform/common"
             sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
             wget https://github.com/Numbersf/Action-Build/raw/main/patchs/hmbird_patch.patch
             echo "Applying OGKI to GKI Patch"
             patch -p1 -F 3 < hmbird_patch.patch
-            echo "OGKI to GKI Patch Completed"
-          fi
+            echo "OGKI to GKI Patch Completed"          
 
       - name: "🐂Run sed and perl Commands"
         run: |
