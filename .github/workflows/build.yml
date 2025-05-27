@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Setup System
+      - name: "🐂Setup System"
         run: |
           export DEBIAN_FRONTEND=noninteractive
           echo "DEBIAN_FRONTEND=noninteractive" >> $GITHUB_ENV
@@ -64,7 +64,7 @@ jobs:
           
           df -h
 
-      - name: Install Repo and Python
+      - name: "⭐Install Repo and Python"
         run: |
           sudo apt update
           sudo apt install -y python3 python-is-python3 make
@@ -74,13 +74,13 @@ jobs:
           chmod a+rx ./git-repo/repo
           echo "REPO=$GITHUB_WORKSPACE/./git-repo/repo" >> $GITHUB_ENV
 
-      - name: Set CONFIG Environment Variable
+      - name: "⭐Set CONFIG Environment Variable"
         run: |
           CONFIG="${{ inputs.model }}"
           echo "CONFIG=$CONFIG" >> $GITHUB_ENV
           echo "CONFIG set to: $CONFIG"
 
-      - name: Clone AnyKernel3 and Other Dependencies
+      - name: "⭐Clone AnyKernel3 and Other Dependencies"
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
           
@@ -94,7 +94,7 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git          
 
-      - name: Initialize and Sync Kernel Source
+      - name: "⭐Initialize and Sync Kernel Source"
         run: |
           echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
@@ -123,7 +123,7 @@ jobs:
             cd ../..
           fi
       
-      - name: Add KernelSU Next
+      - name: "⭐Add KernelSU Next"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -138,7 +138,7 @@ jobs:
           
           git submodule update --init --recursive
 
-      - name: Apply SUSFS Patches
+      - name: "⭐Apply SUSFS Patches"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -180,7 +180,7 @@ jobs:
           fi
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
-      - name: Apply KSUN Hooks
+      - name: "⭐Apply KSUN Hooks"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform/common"
@@ -188,14 +188,14 @@ jobs:
           cp ../../../kernel_patches/next/syscall_hooks.patch ./
           patch -p1 --fuzz=3 < ./syscall_hooks.patch
           
-      - name: Apply Hide Stuff Patches
+      - name: "⭐Apply Hide Stuff Patches"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform/common"
           cp ../../../kernel_patches/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch
           
-      - name: Add Manager Patch
+      - name: "⭐Add Manager Patch"
         run: |
           set -x
           cd "$CONFIG/kernel_platform/KernelSU-Next"
@@ -208,7 +208,7 @@ jobs:
           echo "Applying $PATCH_FILE..."
           patch -p1 --fuzz=3 --verbose < "./$PATCH_FILE" > manager.log 2>&1 || { cat manager.log; echo "Warning: Patch application failed or already applied, continuing..."; }
 
-      - name: Add KernelSU-Next and SUSFS Configuration Settings
+      - name: "😋Add KernelSU-Next and SUSFS Configuration Settings"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -238,7 +238,7 @@ jobs:
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Add BBR Support
+      - name: "😋Add BBR Support"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -265,7 +265,7 @@ jobs:
           echo "CONFIG_TCP_ECN=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IPV6_ECN=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Add TTL Target Support
+      - name: "😋Add TTL Target Support"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -275,7 +275,7 @@ jobs:
           echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Disable blacklisted modules
+      - name: "😋Disable blacklisted modules"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -300,13 +300,7 @@ jobs:
           echo "CONFIG_SOC_TOPOLOGY_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_SOC_UTILS_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Verify gki_defconfig
-        run: |
-          echo "Checking gki_defconfig for blacklisted modules..."
-          cd "$CONFIG/kernel_platform/common"
-          grep -E "CONFIG_EXT4_INODE_TEST|CONFIG_F_FS_IPC_LOG|CONFIG_HUNG_TASK_ENH|CONFIG_IIO_TEST_FORMAT|CONFIG_KUNIT|CONFIG_KUNIT_EXAMPLE_TEST|CONFIG_KUNIT_TEST|CONFIG_KUNIT_DEBUGFS|CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS|CONFIG_OPLUS_LOCK_TORTURE|CONFIG_REGMAP_KUNIT|CONFIG_SOC_TOPOLOGY_TEST|CONFIG_SOC_UTILS_TEST" arch/arm64/configs/gki_defconfig || echo "No blacklisted module configurations found in gki_defconfig."
-
-      - name: Patch Kconfig to Disable Blacklisted Modules
+      - name: "🎶Patch Kconfig to Disable Blacklisted Modules"
         run: |
           echo "Patching Kconfig files to disable blacklisted modules..."
           cd "$CONFIG/kernel_platform"
@@ -318,25 +312,8 @@ jobs:
           find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_LOCK_TORTURE=[ym]/CONFIG_OPLUS_LOCK_TORTURE=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_TOPOLOGY_TEST=[ym]/CONFIG_SOC_TOPOLOGY_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_UTILS_TEST=[ym]/CONFIG_SOC_UTILS_TEST=n/' {} \; || true
-
-      - name: Modify oplus_modules_variant.sh
-        run: |
-          echo "Modifying oplus_modules_variant.sh to exclude blacklisted modules..."
-          cd "$CONFIG/kernel_platform"
-          if [ -f ./oplus/bazel/oplus_modules_variant.sh ]; then
-            sed -i '/ext4_inode_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No ext4_inode_test in oplus_modules_variant.sh"
-            sed -i '/f_fs_ipc_log/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No f_fs_ipc_log in oplus_modules_variant.sh"
-            sed -i '/hung_task_enh/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No hung_task_enh in oplus_modules_variant.sh"
-            sed -i '/iio_test_format/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No iio_test_format in oplus_modules_variant.sh"            
-            sed -i '/oplus_bsp_sigkill_diagnosis/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No oplus_bsp_sigkill_diagnosis in oplus_modules_variant.sh"
-            sed -i '/oplus_lock_torture/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No oplus_lock_torture in oplus_modules_variant.sh"
-            sed -i '/soc_topology_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_topology_test in oplus_modules_variant.sh"
-            sed -i '/soc_utils_test/d' ./oplus/bazel/oplus_modules_variant.sh || echo "No soc_utils_test in oplus_modules_variant.sh"
-          else
-            echo "oplus_modules_variant.sh not found, skipping modification."
-          fi        
                 
-      - name: Disable Debug stuffs
+      - name: "🎶Disable Debug stuffs"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -345,17 +322,18 @@ jobs:
           echo "CONFIG_DYNAMIC_DEBUG=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_DEBUG_INFO=n" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Integrate Sched Ext
+      - name: "🐂Integrate Sched Ext"
         run: |
+         if: ${{ github.event.inputs.kernel_version == '6.6' }}
           cd "$CONFIG/kernel_platform"           
           git clone https://github.com/HanKuCha/sched_ext.git
           cp -r ./sched_ext/* ./common/kernel/sched
           rm -rf ./sched_ext/.git
           cd common/kernel/sched    
 
-      - name: Convert HMBIRD_OGKI to HMBIRD_GKI
+      - name: "🐂Convert HMBIRD_OGKI to HMBIRD_GKI"
         run: |
-          if [ "${{ github.event.inputs.kernel_version }}" = "6.6" ]; then
+          if: ${{ github.event.inputs.kernel_version == '6.6' }}
             cd "$CONFIG/kernel_platform/common"
             sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
             wget https://github.com/Numbersf/Action-Build/raw/main/patchs/hmbird_patch.patch
@@ -364,7 +342,7 @@ jobs:
             echo "OGKI to GKI Patch Completed"
           fi
 
-      - name: Run sed and perl Commands
+      - name: "🐂Run sed and perl Commands"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
@@ -392,7 +370,7 @@ jobs:
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./common/scripts/mkcompile_h
           perl -pi -e 's{UTS_VERSION="\$\s*.*$}{UTS_VERSION="#1 SMP PREEMPT $DATESTR"}' ./msm-kernel/scripts/mkcompile_h
 
-      - name: Build the Kernel
+      - name: "🥰Build the Kernel"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
@@ -433,7 +411,7 @@ jobs:
             LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} "$BUILD_TYPE"
           fi
 
-      - name: Copy Images
+      - name: "🥰Copy Images"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
@@ -447,7 +425,7 @@ jobs:
             # cp ./out/dist/vendor_boot.img ../AnyKernel3/
           fi
 
-      - name: Create ZIP Files for Different Formats
+      - name: "🐂Create ZIP Files for Different Formats"
         run: |
           echo "Navigating to AnyKernel3 directory..."
           cd ./AnyKernel3
@@ -462,7 +440,7 @@ jobs:
             zip -r "../$ZIP_NAME-CN-version.zip" ./*
           fi
 
-      - name: Upload Build Artifacts
+      - name: "💫Upload Build Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ env.CONFIG }}
