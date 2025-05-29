@@ -1,4 +1,4 @@
-name: Build Suki
+name: Build
 permissions:
   contents: write
   actions: write
@@ -28,9 +28,20 @@ on:
         required: true
         type: string
         default: stable
+      scx_enable:
+        description: 'Whether to install the Fengchi kernel driver'
+        required: true
+        type: choice
+        default: 'true'
+        options:
+          - 'true'
+          - 'false'
+
 jobs:
   build-kernel-oneplus-kernelsu-susfs:
     runs-on: ubuntu-latest
+    outputs:
+      ksuver: ${{ steps.ksu_version.outputs.ksuver }}
 
     steps:
       - name: "🐂Setup System"
@@ -63,15 +74,34 @@ jobs:
           
           df -h
 
-      - name: "⭐Install Repo and Python"
+      - name: "⭐Install Repo and Dependencies"
         run: |
           sudo apt update
-          sudo apt install -y python3 python-is-python3 make
+          sudo apt install -y python3 python-is-python3 make curl bison flex binutils dwarves git lld pahole zip perl gcc bc libssl-dev libelf-dev gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
+          sudo rm -rf ./llvm.sh
+          sudo wget https://apt.llvm.org/llvm.sh
+          sudo chmod +x llvm.sh
+          sudo ./llvm.sh 20 all
+          export PATH="/usr/lib/llvm-20/bin:$PATH"
+          echo "PATH=$PATH" >> $GITHUB_ENV
           
           mkdir -p ./git-repo
           curl -sSL https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
           chmod a+rx ./git-repo/repo
           echo "REPO=$GITHUB_WORKSPACE/./git-repo/repo" >> $GITHUB_ENV
+
+      - name: "⭐Check Toolchain Binaries"
+        run: |
+          set -e
+          echo "Checking clang..."
+          which clang || { echo "clang not found"; exit 1; }
+          clang --version
+          echo "Checking aarch64-linux-gnu-gcc..."
+          which aarch64-linux-gnu-gcc || { echo "aarch64-linux-gnu-gcc not found"; exit 1; }
+          aarch64-linux-gnu-gcc --version
+          echo "Checking arm-linux-gnueabihf-gcc..."
+          which arm-linux-gnueabihf-gcc || { echo "arm-linux-gnueabihf-gcc not found"; exit 1; }
+          arm-linux-gnueabihf-gcc --version
 
       - name: "⭐Set CONFIG Environment Variable"
         run: |
@@ -91,8 +121,16 @@ jobs:
           
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
-          git clone https://github.com/TheWildJames/kernel_patches.git          
+          git clone https://github.com/TheWildJames/kernel_patches.git
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
+          # Verify SukiSU_patch clone
+          if [ ! -d "SukiSU_patch" ]; then
+            echo "Error: Failed to clone SukiSU_patch repository"
+            exit 1
+          fi
+          # List contents to debug
+          ls -la SukiSU_patch
+          ls -la SukiSU_patch/hooks || echo "No hooks directory found"
 
       - name: "⭐Initialize and Sync Kernel Source"
         run: |
@@ -147,18 +185,28 @@ jobs:
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-          cp ../../SukiSU_patch/hooks/new_hooks.patch ./common/
+          if [ -f "../../SukiSU_patch/hooks/new_hooks.patch" ]; then
+            cp ../../SukiSU_patch/hooks/new_hooks.patch ./common/
+          else
+            echo "Error: new_hooks.patch not found in SukiSU_patch/hooks/"
+            exit 1
+          fi
           
           cd ./common
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
-          patch -p1 < new_hooks.patch
+          patch -p1 < new_hooks.patch || true
 
       - name: "⭐Apply Hide Stuff Patches"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform/common"
-          cp ../SukiSU_patch/69_hide_stuff.patch ./
-          patch -p1 < 69_hide_stuff.patch
+          if [ -f "../../SukiSU_patch/69_hide_stuff.patch" ]; then
+            cp ../../SukiSU_patch/69_hide_stuff.patch ./
+            patch -p1 -F 3 < 69_hide_stuff.patch || true
+          else
+            echo "Error: 69_hide_stuff.patch not found in SukiSU_patch/"
+            exit 1
+          fi
 
       - name: "😋Add SukiSU-Ultra and SUSFS Configuration Settings"
         run: |
@@ -274,23 +322,31 @@ jobs:
           echo "CONFIG_DEBUG_INFO=n" >> ./common/arch/arm64/configs/gki_defconfig
 
       - name: "🐂Integrate Sched Ext"
-        if: ${{ inputs.kernel_version == '6.6' }}
+        if: ${{ inputs.scx_enable == 'true' }}
         run: |
-            cd "$CONFIG/kernel_platform"           
-            git clone https://github.com/HanKuCha/sched_ext.git
-            cp -r ./sched_ext/* ./common/kernel/sched
-            rm -rf ./sched_ext/.git
-            cd common/kernel/sched    
+          cd "$CONFIG/kernel_platform"
+          git clone https://github.com/HanKuCha/sched_ext.git
+          cp -r ./sched_ext/* ./common/kernel/sched
+          rm -rf ./sched_ext/.git
+          cd common/kernel/sched
 
       - name: "🐂Convert HMBIRD_OGKI to HMBIRD_GKI"
         if: ${{ inputs.kernel_version == '6.6' }}
         run: |
-            cd "$CONFIG/kernel_platform/common"
-            sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
-            wget https://github.com/Numbersf/Action-Build/raw/main/patchs/hmbird_patch.patch
-            echo "Applying OGKI to GKI Patch"
-            patch -p1 -F 3 < hmbird_patch.patch
-            echo "OGKI to GKI Patch Completed"          
+          cd "$CONFIG/kernel_platform/common"
+          sed -i '1iobj-y += hmbird_patch.o' drivers/Makefile
+          wget https://github.com/Numbersf/Action-Build/raw/main/patchs/hmbird_patch.patch
+          echo "Applying OGKI to GKI Patch"
+          patch -p1 -F 3 < hmbird_patch.patch
+          echo "OGKI to GKI Patch Completed"
+
+      - name: "🐂Add Build Name"
+        run: |
+          cd "$CONFIG/kernel_platform"
+          echo "Setting kernel version suffix to android14-11-o-gca13bffobf09..."
+          for f in ./common/scripts/setlocalversion ./msm-kernel/scripts/setlocalversion ./external/dtc/scripts/setlocalversion; do
+            sed -i "\$s|echo \"\\\$res\"|echo \"-android14-11-o-gca13bffobf09\"|" "$f" || true
+          done
 
       - name: "🐂Run sed and perl Commands"
         run: |
@@ -361,6 +417,15 @@ jobs:
             LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ inputs.soc }} "$BUILD_TYPE"
           fi
 
+      - name: "🥰Apply patch_linux and Patch Kernel"
+        run: |
+          cd "$CONFIG/out/dist"
+          curl -LO https://github.com/ShirkNeko/SukiSU_KernelPatch_patch/releases/download/0.11-beta/patch_linux
+          chmod +x patch_linux
+          ./patch_linux
+          rm -f Image
+          mv oImage Image
+
       - name: "🥰Copy Images"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -381,9 +446,10 @@ jobs:
           cd ./AnyKernel3
           
           # Zip the files in the AnyKernel3 directory with a new naming convention
-          ZIP_NAME="${{ inputs.model }}_${{ inputs.android_version }}_${{ inputs.kernel_version }}_Next_SUSFS_AnyKernel3.zip"
+          ZIP_NAME="${{ inputs.model }}_${{ inputs.android_version }}_${{ inputs.kernel_version }}_SukiSU_${{ env.KSUVER }}_android14-11-o-gca13bffobf09_AnyKernel3.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
+          
           # Fengchi Patch for OPAce5Pro
           if [ "${{ inputs.model }}" == "OPAce5Pro" ]; then
             sed -i 's/hmbird/xxbird/g' dtbo.img
