@@ -1,4 +1,4 @@
-name: Build
+name: Build Suki
 permissions:
   contents: write
   actions: write
@@ -28,7 +28,6 @@ on:
         required: true
         type: string
         default: stable
-
 jobs:
   build-kernel-oneplus-kernelsu-susfs:
     runs-on: ubuntu-latest
@@ -93,6 +92,7 @@ jobs:
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git          
+          git clone https://github.com/ShirkNeko/SukiSU_patch.git
 
       - name: "⭐Initialize and Sync Kernel Source"
         run: |
@@ -112,7 +112,7 @@ jobs:
             exit 1
           }
           # Apply fengchi patch if needed
-          if [ -f "fengchi.patch" ]; then
+          if [ -f "fengchi.patch" ] && [ "${{ inputs.scx_enable }}" == "true" ]; then
             echo "Applying fengchi patch..."
             cd kernel_platform/common
             patch -p1 < ../../fengchi.patch || {
@@ -122,102 +122,54 @@ jobs:
             echo "Fengchi patch applied successfully"
             cd ../..
           fi
-      
-      - name: "⭐Add KernelSU Next"
-        run: |
-          echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG/kernel_platform"
-          
-          echo "Adding KernelSU Next..."
-          
-          if [ "${{ inputs.ksun_branch }}" == "stable" ]; then
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
-          else
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s ${{ inputs.ksun_branch }}
-          fi
-          
-          git submodule update --init --recursive
 
-      - name: "⭐Apply SUSFS Patches"
+      - name: "⭐Add SukiSU-Ultra"
+        id: ksu_version
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
           
-          echo "Applying SUSFS patches..."
+          echo "Adding SukiSU-Ultra..."
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/refs/heads/main/kernel/setup.sh" | bash -s susfs-dev
           
+          cd ./KernelSU
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10606)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=$KSU_VERSION/" kernel/Makefile
+
+      - name: "⭐Apply SUSFS Patches for SukiSU-Ultra"
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG/kernel_platform"
+          
+          echo "Applying SUSFS patches for SukiSU-Ultra..."
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          cp ../../SukiSU_patch/hooks/new_hooks.patch ./common/
           
-          cd ./KernelSU-Next
-          
-          if [ "${{ inputs.ksun_branch }}" == "stable" ] || [ "${{ inputs.ksun_branch }}" == "next" ]; then
-            echo "Applying next SUSFS patches..."
-            cp ../../../kernel_patches/next/0001-kernel-patch-susfs-v1.5.7-to-KernelSU-Next-v1.0.7.patch ./ksun_susfs_latest.patch
-            patch -p1 --forward < ksun_susfs_latest.patch || true
-          fi
-          
-          case "${{ inputs.ksun_branch }}" in
-            next|stable)
-              BASE_VERSION=10200
-              ;;
-            next-susfs|next-susfs-dev)
-              BASE_VERSION=10198
-              ;;
-            *)
-              BASE_VERSION=10200
-              ;;
-          esac
-          
-          cd ./kernel
-          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" $BASE_VERSION)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile
-          
-          cd ../../common
-          if [ "${{ inputs.soc }}" == "sun" ]; then
-            sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace/hooks/fs.h>' ./fs/namespace.c
-          fi
+          cd ./common
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
+          patch -p1 < new_hooks.patch
 
-      - name: "⭐Apply KSUN Hooks"
-        run: |
-          echo "Changing to configuration directory: $CONFIG..."
-          cd "$CONFIG/kernel_platform/common"
-          echo "Applying KSUN Hooks..."
-          cp ../../../kernel_patches/next/syscall_hooks.patch ./
-          patch -p1 --fuzz=3 < ./syscall_hooks.patch
-          
       - name: "⭐Apply Hide Stuff Patches"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform/common"
-          cp ../../../kernel_patches/69_hide_stuff.patch ./
+          cp ../../SukiSU_patch/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch
-          
-      - name: "⭐Add Manager Patch"
-        run: |
-          set -x
-          cd "$CONFIG/kernel_platform/KernelSU-Next"
-          PATCH_FILE="manager.patch"
-          if [ ! -f "../../../kernel_patches/next/$PATCH_FILE" ]; then
-            echo "Error: $PATCH_FILE not found in kernel_patches/next/"
-            exit 1
-          fi
-          cp "../../../kernel_patches/next/$PATCH_FILE" ./ || { echo "Error: Failed to copy $PATCH_FILE"; exit 1; }
-          echo "Applying $PATCH_FILE..."
-          patch -p1 --fuzz=3 --verbose < "./$PATCH_FILE" > manager.log 2>&1 || { cat manager.log; echo "Warning: Patch application failed or already applied, continuing..."; }
 
-      - name: "😋Add KernelSU-Next and SUSFS Configuration Settings"
+      - name: "😋Add SukiSU-Ultra and SUSFS Configuration Settings"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/kernel_platform"
           
           echo "Adding configuration settings to gki_defconfig..."
-          
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> ./common/arch/arm64/configs/gki_defconfig
-          
+          echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -233,7 +185,6 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
           
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -284,7 +235,7 @@ jobs:
           sed -i '/CONFIG_EXT4_INODE_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_F_FS_IPC_LOG=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_HUNG_TASK_ENH=/d' ./common/arch/arm64/configs/gki_defconfig
-          sed -i '/CONFIG_IIO_TEST_FORMAT=/d' ./common/arch/arm64/configs/gki_defconfig          
+          sed -i '/CONFIG_IIO_TEST_FORMAT=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_OPLUS_LOCK_TORTURE=/d' ./common/arch/arm64/configs/gki_defconfig
           sed -i '/CONFIG_SOC_TOPOLOGY_TEST=/d' ./common/arch/arm64/configs/gki_defconfig
@@ -294,7 +245,7 @@ jobs:
           echo "CONFIG_EXT4_INODE_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_F_FS_IPC_LOG=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_HUNG_TASK_ENH=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IIO_TEST_FORMAT=n" >> ./common/arch/arm64/configs/gki_defconfig          
+          echo "CONFIG_IIO_TEST_FORMAT=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_OPLUS_LOCK_TORTURE=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_SOC_TOPOLOGY_TEST=n" >> ./common/arch/arm64/configs/gki_defconfig
@@ -307,12 +258,12 @@ jobs:
           find . -name Kconfig -exec sed -i 's/CONFIG_EXT4_INODE_TEST=[ym]/CONFIG_EXT4_INODE_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_F_FS_IPC_LOG=[ym]/CONFIG_F_FS_IPC_LOG=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_HUNG_TASK_ENH=[ym]/CONFIG_HUNG_TASK_ENH=n/' {} \; || true
-          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=[ym]/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true        
+          find . -name Kconfig -exec sed -i 's/CONFIG_IIO_TEST_FORMAT=[ym]/CONFIG_IIO_TEST_FORMAT=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=[ym]/CONFIG_OPLUS_BSP_SIGKILL_DIAGNOSIS=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_OPLUS_LOCK_TORTURE=[ym]/CONFIG_OPLUS_LOCK_TORTURE=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_TOPOLOGY_TEST=[ym]/CONFIG_SOC_TOPOLOGY_TEST=n/' {} \; || true
           find . -name Kconfig -exec sed -i 's/CONFIG_SOC_UTILS_TEST=[ym]/CONFIG_SOC_UTILS_TEST=n/' {} \; || true
-                
+
       - name: "🎶Disable Debug stuffs"
         run: |
           echo "Changing to configuration directory: $CONFIG..."
