@@ -149,17 +149,15 @@ jobs:
             echo "Repo sync failed"
             exit 1
           }
-          # Apply fengchi patch if needed
-          if [ -f "fengchi.patch" ] && [ "${{ inputs.scx_enable }}" == "true" ]; then
+          # Apply fengchi patch if needed          
             echo "Applying fengchi patch..."
             cd kernel_platform/common
             patch -p1 < ../../fengchi.patch || {
-              echo "Failed to apply fengchi patch"
-              exit 1
+              echo "Failed to apply fengchi patch"              
             }
             echo "Fengchi patch applied successfully"
             cd ../..
-          fi
+          
 
       - name: "⭐Add SukiSU-Ultra"
         id: ksu_version
