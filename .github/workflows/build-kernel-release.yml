@@ -22,6 +22,14 @@ on:
           - next-susfs
           - next-susfs-dev
         default: stable
+      scx_enable:
+        description: 'Whether to install the Fengchi kernel driver'
+        required: true
+        type: choice
+        default: 'true'
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
 #  build-batch-1: # Non Bazel Builds
